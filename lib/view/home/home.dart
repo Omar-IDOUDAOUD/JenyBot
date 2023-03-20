@@ -5,10 +5,15 @@ import 'package:chatgpt_flutter_app/controller/home_controller.dart';
 import 'package:chatgpt_flutter_app/core/constants/colors.dart';
 import 'package:chatgpt_flutter_app/model/message_model.dart';
 import 'package:chatgpt_flutter_app/view/home/widgets/gpt_message_raw.dart';
+import 'package:chatgpt_flutter_app/view/home/widgets/models_selection_bottom_sheet.dart';
+import 'package:chatgpt_flutter_app/view/home/widgets/question_input_field.dart';
 import 'package:chatgpt_flutter_app/view/home/widgets/user_message_raw.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+
+import 'widgets/drawer.dart';
 
 const String CONVERSATION_LIST_ID = "CONVERSATION_LIST_ID";
 
@@ -21,32 +26,59 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> {
   final HomeController _controller = Get.find();
+  
 
-  // List<MessageModel> _messages = [];
-  TextEditingController _textEditingController = TextEditingController();
+  late TextEditingController _questionTextEditingController;
+  late FocusNode _questionInputFocusNode;
 
   @override
   void initState() {
     // TODO: implement initState
+    super.initState(); 
+    _questionInputFocusNode = FocusNode();
+    _questionTextEditingController = TextEditingController(); 
+  }
+
+  @override
+  void dispose() { 
+    _questionInputFocusNode.dispose();
+    _questionTextEditingController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: const SafeArea(child: const CostumeDrawer()),
+      drawerScrimColor: Colors.black54.withOpacity(.2),
       backgroundColor: ColorsConstant.a,
       appBar: AppBar(
+        shadowColor: Colors.black54,
+        automaticallyImplyLeading: false,
+        leading: Builder(builder: (context) {
+          return GestureDetector(
+            onTap: Scaffold.of(context).openDrawer,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 25),
+              child: SvgPicture.asset(
+                'assets/drawer-icon.svg',
+                fit: BoxFit.contain,
+              ),
+            ),
+          );
+        }),
+        leadingWidth: 40,
         backgroundColor: ColorsConstant.b,
         title: const Text(
-          'CHAT-GPT Conversation',
+          'Chat-Bot App',
           style: TextStyle(
             color: Colors.white,
-            fontWeight: FontWeight.w800,
-            fontSize: 13,
-            fontFamily: 'Arial',
+            fontSize: 16,
+            fontFamily: 'Inter',
           ),
         ),
-        elevation: 0,
-        titleSpacing: 25,
+        elevation: 30,
+        titleSpacing: 20,
         toolbarHeight: 60,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.only(
@@ -55,26 +87,29 @@ class _HomeState extends State<Home> {
           ),
         ),
         actions: [
-          // IconButton(
-          //   icon: Icon(
-          //     Icons.category_outlined,
-          //     color: Colors.white,
-          //     size: 20,
-          //   ),
-          //   onPressed: () => showModelsBottomSheet(),
-          // ),
-          // SizedBox(
-          //   width: 10,
-          // ),
+          GestureDetector(
+            onTap: () {
+              Get.bottomSheet(
+                const ModelSelectionBottomSheet(),
+                backgroundColor: ColorsConstant.e,
+                elevation: 20,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(30),
+                  ),
+                ),
+              );
+            },
+            child: SvgPicture.asset('assets/models-icon.svg', height: 13),
+          ),
+          const SizedBox(
+            width: 20,
+          ),
           GestureDetector(
             onTap: () {
               _controller.createNewConversation();
             },
-            child: const Icon(
-              Icons.add_rounded,
-              color: Colors.white,
-              size: 20,
-            ),
+            child: SvgPicture.asset('assets/add.svg', height: 13),
           ),
           const SizedBox(
             width: 20,
@@ -104,130 +139,45 @@ class _HomeState extends State<Home> {
                           _controller.conversation.elementAt(i) as MessageModel,
                       withPopupAnimation:
                           i == _controller.conversation.length - 1,
+                      onEdit: (t) {
+                        _questionTextEditingController.text = t;
+                        FocusScope.of(context)
+                            .requestFocus(_questionInputFocusNode);
+                      },
+                      onSave: (content) {
+                        _controller.saveMessage(
+                            msg: content, owner: MessageOwner.user);
+                      },
                     );
                   return GptMessageRawWidget(
                     data: _controller.conversation.elementAt(i)
                         as Future<MessageModel>,
                     withPopupAnimation:
                         i == _controller.conversation.length - 1,
+                    onEdit: (t) {
+                      _questionTextEditingController.text = t;
+                      FocusScope.of(context).unfocus();
+                      _questionInputFocusNode.requestFocus();
+                    },
+                    onSave: (content) {
+                      _controller.saveMessage(
+                          msg: content, owner: MessageOwner.gpt);
+                    },
                   );
                 },
               );
             },
           )),
           Positioned(
-            bottom: 25,
-            right: 25,
-            left: 25,
-            // height: 42,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _textEditingController,
-                    onSubmitted: (s) {
-                      _controller.sendMessage(s);
-                      _textEditingController.text = "";
-                    },
-                    maxLines: 30,
-                    minLines: 1,
-                    expands: false,
-                    cursorColor: Colors.white,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontFamily: 'Arial',
-                      color: Colors.white,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Ask a question...',
-                      hintStyle: TextStyle(
-                        color: Colors.white.withOpacity(.5),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                      contentPadding: const EdgeInsets.all(17),
-                      isCollapsed: true,
-                      filled: true,
-                      fillColor: ColorsConstant.b,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(
-                  width: 10,
-                ),
-                GestureDetector(
-                  onTap: () {
-                    setState(
-                      () {
-                        _controller.sendMessage(_textEditingController.text);
-                        _textEditingController.text = "";
-                      },
-                    );
-                  },
-                  child: SizedBox.square(
-                    dimension: 40,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: ColorsConstant.b,
-                      ),
-                      child: const Icon(
-                        Icons.arrow_forward_rounded,
-                        color: Colors.white,
-                        size: 15,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+              bottom: 0,
+              right: 0,
+              left: 0,
+              child: QuestionInputField(
+                focusNode: _questionInputFocusNode,
+                textEditingController: _questionTextEditingController,
+              )),
         ],
       ),
     );
   }
-
-  // void showModelsBottomSheet() {
-  //   Get.bottomSheet(
-  //       ListView.builder(
-  //             itemCount: ModelsNamesAndUrlsConstants.models.length,
-  //             itemBuilder: (_, i) {
-  //               return ListTile(
-  //                 trailing:
-  //                     ModelsNamesAndUrlsConstants.models.keys.elementAt(i) == _controller.selectedModel
-  //                         ? Icon(
-  //                             Icons.check,
-  //                             color: Colors.white,
-  //                           )
-  //                         : SizedBox.shrink(),
-  //                 onTap: () {
-  //                   _controller.selectedModel = ModelsNamesAndUrlsConstants.models.keys.elementAt(i);
-  //                   Get.back();
-  //                 },
-  //                 contentPadding: EdgeInsets.symmetric(horizontal: 25),
-  //                 title: Text(
-  //                   ModelsNamesAndUrlsConstants.models.keys.elementAt(i),
-  //                   style: TextStyle(
-  //                     color: Colors.white,
-  //                     fontWeight: FontWeight.w600,
-  //                     fontSize: 13,
-  //                   ),
-  //                 ),
-  //               );
-  //             },
-  //           ), 
-  //       backgroundColor: ColorsConstant.b,
-  //       elevation: 20,
-  //       shape: RoundedRectangleBorder(
-  //         borderRadius: BorderRadius.only(
-  //           topLeft: Radius.circular(20),
-  //           topRight: Radius.circular(20),
-  //         ),
-  //       ));
-  // }
 }
