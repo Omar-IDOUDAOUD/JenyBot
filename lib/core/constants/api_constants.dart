@@ -1,7 +1,7 @@
 class ApiConstants {
   static const String API_BASE_URL = "https://api.openai.com/v1";
-  // static const String API_KEY = "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";
-  static const List<Map<String, dynamic>> GPT_MODELS_URLS = [
+  // static const String API_KEY = "API-KEY";
+  static const List<Map<String, dynamic>> GPT_MODELS_URLS= [
     {
       'model': 'gpt-3.5-turbo-0301',
       'url': API_BASE_URL + '/chat/completions',
